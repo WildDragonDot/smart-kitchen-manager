@@ -12,7 +12,11 @@
     "db:push": "turbo db:push",
     "db:migrate": "turbo db:migrate",
     "db:studio": "cd packages/db && pnpm prisma studio",
-    "clean": "turbo clean && rm -rf node_modules .turbo"
+    "clean": "turbo clean && rm -rf node_modules .turbo",
+    "setup": "./scripts/setup-backend.sh",
+    "api:dev": "cd apps/api && pnpm dev",
+    "web:dev": "cd apps/web && pnpm dev",
+    "install:all": "pnpm install && cd packages/db && pnpm prisma generate"
   },
   "devDependencies": {
     "turbo": "^2.3.0",

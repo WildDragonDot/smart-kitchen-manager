@@ -105,6 +105,42 @@ async function startServer() {
     }
   });
 
+  // Barcode scanning endpoint
+  fastify.post('/scan/barcode', async (request, reply) => {
+    try {
+      const data = await request.file();
+      if (!data) {
+        return reply.code(400).send({ success: false, message: 'No file uploaded' });
+      }
+
+      const buffer = await data.toBuffer();
+      
+      // Process barcode with OCR service
+      const { OCRService } = await import('./services/ocr');
+      const barcode = await OCRService.processBarcode(buffer);
+      
+      if (barcode) {
+        return reply.send({
+          success: true,
+          barcode,
+          format: 'EAN-13', // Default format
+          message: 'Barcode detected successfully'
+        });
+      } else {
+        return reply.code(404).send({
+          success: false,
+          message: 'No barcode detected in image'
+        });
+      }
+    } catch (error) {
+      fastify.log.error('Barcode scanning failed: ' + (error as Error).message);
+      return reply.code(500).send({
+        success: false,
+        message: 'Barcode scanning failed'
+      });
+    }
+  });
+
   // OCR Receipt processing endpoint
   fastify.post('/ocr/receipt', async (request, reply) => {
     try {

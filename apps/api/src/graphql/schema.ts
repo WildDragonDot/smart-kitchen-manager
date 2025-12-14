@@ -485,6 +485,9 @@ export const typeDefs: DocumentNode = gql`
     createShoppingListItem(input: CreateShoppingListItemInput!): ShoppingListItem!
     updateShoppingListItem(id: ID!, isPurchased: Boolean, price: Float): ShoppingListItem!
     deleteShoppingListItem(id: ID!): Boolean!
+    
+    # Auto-generate shopping list from inventory
+    generateAutoShoppingList(kitchenId: ID!, type: ShoppingListType!): ShoppingList!
 
     # Expenses
     createExpense(input: CreateExpenseInput!): Expense!
@@ -495,6 +498,9 @@ export const typeDefs: DocumentNode = gql`
     createReminder(input: CreateReminderInput!): Reminder!
     updateReminder(id: ID!, isCompleted: Boolean): Reminder!
     deleteReminder(id: ID!): Boolean!
+    
+    # Generate smart reminders based on inventory and usage patterns
+    generateSmartReminders(kitchenId: ID!): SmartReminderResult!
 
     # Usage Logs
     createUsageLog(input: CreateUsageLogInput!): UsageLog!
@@ -539,6 +545,13 @@ export const typeDefs: DocumentNode = gql`
     quantity: Float
     price: Float
     unit: String
+  }
+
+  # Smart Reminder Types
+  type SmartReminderResult {
+    success: Boolean!
+    remindersCreated: Int!
+    reminders: [Reminder!]!
   }
 
   # Subscriptions

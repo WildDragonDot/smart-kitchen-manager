@@ -155,4 +155,100 @@ export class StorageService {
   static async uploadInventoryImage(buffer: Buffer, filename: string): Promise<UploadResult> {
     return this.uploadFile(buffer, filename, 'image/jpeg', 'inventory');
   }
+
+  /**
+   * Upload user avatar image
+   */
+  static async uploadAvatar(buffer: Buffer, filename: string, userId: string): Promise<UploadResult> {
+    try {
+      // Generate unique filename with user ID
+      const fileExtension = filename.split('.').pop() || 'jpg';
+      const uniqueFilename = `${userId}-${Date.now()}.${fileExtension}`;
+      const key = `avatars/${uniqueFilename}`;
+
+      // Optimize avatar image (smaller size for avatars)
+      const optimizedBuffer = await sharp(buffer)
+        .resize(400, 400, { 
+          fit: 'cover', 
+          position: 'center' 
+        })
+        .jpeg({ 
+          quality: 90, 
+          progressive: true 
+        })
+        .toBuffer();
+
+      // Upload to R2
+      const command = new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: key,
+        Body: optimizedBuffer,
+        ContentType: 'image/jpeg',
+        Metadata: {
+          originalFilename: filename,
+          userId: userId,
+          uploadedAt: new Date().toISOString(),
+        },
+      });
+
+      await r2Client.send(command);
+
+      const url = `${PUBLIC_URL}/${key}`;
+
+      return {
+        url,
+        key,
+        filename: uniqueFilename,
+        size: optimizedBuffer.length,
+        contentType: 'image/jpeg',
+      };
+    } catch (error) {
+      console.error('Avatar upload failed:', error);
+      throw new Error('Failed to upload avatar');
+    }
+  }
+
+  /**
+   * Generate presigned URL for avatar upload
+   */
+  static async getPresignedAvatarUploadUrl(userId: string): Promise<{ url: string; key: string }> {
+    try {
+      const uniqueFilename = `${userId}-${Date.now()}.jpg`;
+      const key = `avatars/${uniqueFilename}`;
+
+      const command = new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: key,
+        ContentType: 'image/jpeg',
+        Metadata: {
+          userId: userId,
+          uploadedAt: new Date().toISOString(),
+        },
+      });
+
+      const url = await getSignedUrl(r2Client, command, { expiresIn: 3600 }); // 1 hour
+
+      return { url, key };
+    } catch (error) {
+      console.error('Presigned avatar URL generation failed:', error);
+      throw new Error('Failed to generate presigned avatar URL');
+    }
+  }
+
+  /**
+   * Delete old avatar when user uploads new one
+   */
+  static async deleteOldAvatar(avatarUrl: string): Promise<void> {
+    try {
+      if (!avatarUrl || !avatarUrl.includes(PUBLIC_URL)) {
+        return; // Not our hosted image
+      }
+
+      const key = avatarUrl.replace(`${PUBLIC_URL}/`, '');
+      await this.deleteFile(key);
+    } catch (error) {
+      console.error('Failed to delete old avatar:', error);
+      // Don't throw error, just log it
+    }
+  }
 }

@@ -9,6 +9,8 @@ import fastifyApollo, { fastifyApolloDrainPlugin } from '@as-integrations/fastif
 import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
 import jwt from '@fastify/jwt';
+import rateLimit from '@fastify/rate-limit';
+import helmet from '@fastify/helmet';
 
 import { typeDefs } from './graphql/schema';
 import { resolvers } from './graphql/resolvers';
@@ -26,7 +28,32 @@ async function startServer() {
     },
   });
 
-  // Register plugins
+  // Register security plugins
+  await fastify.register(helmet, {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "https:"],
+      },
+    },
+  });
+
+  await fastify.register(rateLimit, {
+    max: process.env.NODE_ENV === 'production' ? 100 : 1000, // requests per window
+    timeWindow: '15 minutes', // 15 minutes
+    errorResponseBuilder: function (request, context) {
+      return {
+        code: 429,
+        error: 'Too Many Requests',
+        message: `Rate limit exceeded, retry in ${Math.round(context.ttl / 1000)} seconds`,
+        date: Date.now(),
+        expiresIn: Math.round(context.ttl / 1000),
+      };
+    },
+  });
+
   await fastify.register(cors, {
     origin: process.env.NODE_ENV === 'production' 
       ? [process.env.FRONTEND_URL || 'https://your-domain.com']
@@ -66,9 +93,44 @@ async function startServer() {
 
   await apollo.start();
 
-  // Register GraphQL endpoint
-  await fastify.register(fastifyApollo(apollo), {
-    context: createContext,
+  // Register GraphQL endpoint with stricter rate limiting
+  await fastify.register(async function (fastify) {
+    await fastify.register(rateLimit, {
+      max: process.env.NODE_ENV === 'production' ? 50 : 200, // Lower limit for GraphQL
+      timeWindow: '15 minutes',
+      keyGenerator: function (request) {
+        // Rate limit by IP and user ID if authenticated
+        const authHeader = request.headers.authorization;
+        let userId = 'anonymous';
+        
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          try {
+            const token = authHeader.substring(7);
+            const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this') as any;
+            userId = decoded.userId || 'anonymous';
+          } catch (error) {
+            // Invalid token, use IP only
+          }
+        }
+        
+        return `${request.ip}-${userId}`;
+      },
+      errorResponseBuilder: function (request, context) {
+        return {
+          errors: [{
+            message: 'Rate limit exceeded for GraphQL requests',
+            extensions: {
+              code: 'RATE_LIMIT_EXCEEDED',
+              retryAfter: Math.round(context.ttl / 1000),
+            },
+          }],
+        };
+      },
+    });
+
+    await fastify.register(fastifyApollo(apollo), {
+      context: createContext,
+    });
   });
 
   // Health check endpoint
@@ -102,6 +164,78 @@ async function startServer() {
     } catch (error) {
       fastify.log.error('Upload failed: ' + (error as Error).message);
       return reply.code(500).send({ error: 'Upload failed' });
+    }
+  });
+
+  // Avatar upload endpoint
+  fastify.post('/upload/avatar', async (request, reply) => {
+    try {
+      // Check authentication
+      const authHeader = request.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return reply.code(401).send({ error: 'Authentication required' });
+      }
+
+      const token = authHeader.substring(7);
+      let userId: string;
+      
+      try {
+        const jwt = await import('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this') as any;
+        userId = decoded.userId;
+      } catch (error) {
+        return reply.code(401).send({ error: 'Invalid token' });
+      }
+
+      const data = await request.file();
+      if (!data) {
+        return reply.code(400).send({ error: 'No avatar file uploaded' });
+      }
+
+      // Validate file type
+      if (!data.mimetype || !data.mimetype.startsWith('image/')) {
+        return reply.code(400).send({ error: 'Only image files are allowed for avatars' });
+      }
+
+      // Validate file size (max 5MB)
+      const buffer = await data.toBuffer();
+      if (buffer.length > 5 * 1024 * 1024) {
+        return reply.code(400).send({ error: 'Avatar file too large (max 5MB)' });
+      }
+
+      const filename = data.filename || 'avatar.jpg';
+
+      // Upload avatar to Cloudflare R2
+      const { StorageService } = await import('./services/storage');
+      
+      // Get current user to delete old avatar
+      const { createContext } = await import('./graphql/context');
+      const context = await createContext(request, reply);
+      
+      if (context.user) {
+        const currentUser = await context.prisma.user.findUnique({
+          where: { id: context.user.id },
+          select: { avatar: true },
+        });
+
+        // Delete old avatar if exists
+        if (currentUser?.avatar) {
+          await StorageService.deleteOldAvatar(currentUser.avatar);
+        }
+      }
+
+      const result = await StorageService.uploadAvatar(buffer, filename, userId);
+      
+      // Update user avatar URL in database
+      await context.prisma.user.update({
+        where: { id: userId },
+        data: { avatar: result.url },
+      });
+      
+      return result;
+    } catch (error) {
+      fastify.log.error('Avatar upload failed: ' + (error as Error).message);
+      return reply.code(500).send({ error: 'Avatar upload failed' });
     }
   });
 

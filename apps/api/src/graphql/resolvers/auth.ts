@@ -9,6 +9,8 @@ import {
   isValidEmail, 
   validatePassword 
 } from '../../utils/errors';
+import { securityMiddleware, checkGraphQLSecurity } from '../../middleware/security';
+import { EmailService } from '../../services/email';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
@@ -94,6 +96,11 @@ export const authResolvers = {
           { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
         );
 
+        // Send welcome email (don't wait for it)
+        EmailService.sendWelcomeEmail(user.email, user.name || 'User').catch(error => {
+          console.error('Failed to send welcome email:', error);
+        });
+
         return {
           token,
           user,
@@ -122,10 +129,20 @@ export const authResolvers = {
 
     login: async (_: any, { input }: any, context: Context) => {
       try {
+        // Check security first
+        await checkGraphQLSecurity(context);
+        
         const { email, password } = input;
+        const ip = securityMiddleware.getClientIP(context.request);
+
+        // Check if IP is locked out
+        if (securityMiddleware.isLockedOut(ip)) {
+          throw new Error('Too many failed login attempts. Please try again later.');
+        }
 
         // Validate email format
         if (!isValidEmail(email)) {
+          securityMiddleware.trackFailedLogin(ip);
           throw ValidationErrors.invalidEmail();
         }
 
@@ -135,14 +152,19 @@ export const authResolvers = {
         });
 
         if (!user) {
+          securityMiddleware.trackFailedLogin(ip);
           throw AuthErrors.invalidCredentials();
         }
 
         // Check password
         const isValidPassword = await bcrypt.compare(password, user.password);
         if (!isValidPassword) {
+          securityMiddleware.trackFailedLogin(ip);
           throw AuthErrors.invalidCredentials();
         }
+
+        // Clear failed login attempts on successful login
+        securityMiddleware.clearFailedLogins(ip);
 
         // Generate JWT token
         const token = jwt.sign(
@@ -204,8 +226,10 @@ export const authResolvers = {
         console.log(`Reset URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`);
       }
 
-      // TODO: Send email with reset link
-      // await sendPasswordResetEmail(user.email, resetToken);
+      // Send password reset email
+      EmailService.sendPasswordResetEmail(user.email, resetToken).catch(error => {
+        console.error('Failed to send password reset email:', error);
+      });
 
       return { success: true, message: 'If the email exists, a reset link has been sent.' };
     },

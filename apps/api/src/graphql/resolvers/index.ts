@@ -1,5 +1,6 @@
 import { DateTimeResolver, JSONResolver } from 'graphql-scalars';
 import { authResolvers } from './auth';
+import { userResolvers } from './user';
 import { householdResolvers } from './household';
 import { kitchenResolvers } from './kitchen';
 import { inventoryResolvers } from './inventory';
@@ -30,6 +31,7 @@ export const resolvers: any = {
 
   Mutation: {
     ...authResolvers.Mutation,
+    ...userResolvers.Mutation,
     ...householdResolvers.Mutation,
     ...kitchenResolvers.Mutation,
     ...inventoryResolvers.Mutation,

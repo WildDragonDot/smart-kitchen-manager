@@ -13,6 +13,7 @@ export const typeDefs: DocumentNode = gql`
     avatar: String
     phone: String
     emailVerified: Boolean!
+    settings: JSON
     createdAt: DateTime!
     updatedAt: DateTime!
     households: [HouseholdMember!]!
@@ -287,6 +288,33 @@ export const typeDefs: DocumentNode = gql`
     password: String!
   }
 
+  input UpdateUserProfileInput {
+    name: String
+    phone: String
+    avatar: String
+  }
+
+  input UpdateUserSettingsInput {
+    notifications: JSON
+    privacy: JSON
+    appSettings: JSON
+    security: JSON
+    support: JSON
+  }
+
+  type UploadResult {
+    url: String!
+    key: String!
+    filename: String!
+    size: Int!
+    contentType: String!
+  }
+
+  type PresignedUploadResult {
+    url: String!
+    key: String!
+  }
+
   type ForgotPasswordResponse {
     success: Boolean!
     message: String!
@@ -456,6 +484,12 @@ export const typeDefs: DocumentNode = gql`
     logout: Boolean!
     forgotPassword(email: String!): ForgotPasswordResponse!
     resetPassword(token: String!, newPassword: String!): ResetPasswordResponse!
+    
+    # User Profile
+    updateUserProfile(input: UpdateUserProfileInput!): User!
+    updateUserSettings(input: UpdateUserSettingsInput!): Boolean!
+    uploadAvatar: UploadResult!
+    getAvatarUploadUrl: PresignedUploadResult!
 
     # Households
     createHousehold(input: CreateHouseholdInput!): Household!

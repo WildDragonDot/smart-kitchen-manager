@@ -33,7 +33,7 @@ WORKDIR /app
 COPY --from=builder /app ./
 
 # Install production dependencies only
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod
 
 # Create user
 RUN addgroup --system --gid 1001 nodejs

@@ -4,8 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "turbo dev",
-    "build": "turbo build",
+    "build": "pnpm install:all && turbo build",
+    "build:api": "cd packages/db && pnpm prisma generate && cd ../../apps/api && pnpm install && pnpm build",
+    "build:web": "cd packages/db && pnpm prisma generate && cd ../../apps/web && pnpm install && pnpm build",
     "start": "turbo start",
+    "start:api": "cd apps/api && pnpm start",
+    "start:web": "cd apps/web && pnpm start",
     "lint": "turbo lint",
     "type-check": "turbo type-check",
     "db:generate": "turbo db:generate",

@@ -106,7 +106,7 @@ async function startServer() {
         if (authHeader && authHeader.startsWith('Bearer ')) {
           try {
             const token = authHeader.substring(7);
-            const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this') as any;
+            const decoded = fastify.jwt.verify(token) as any;
             userId = decoded.userId || 'anonymous';
           } catch (error) {
             // Invalid token, use IP only

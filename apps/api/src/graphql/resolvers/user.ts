@@ -3,7 +3,7 @@ import { ValidationErrors, handlePrismaError } from '../../utils/errors';
 import { checkGraphQLSecurity } from '../../middleware/security';
 import { StorageService } from '../../services/storage';
 
-export const userResolvers = {
+export const userResolvers: any = {
   Mutation: {
     updateUserProfile: async (_: any, { input }: any, context: Context) => {
       try {
@@ -55,8 +55,7 @@ export const userResolvers = {
         
         const user = requireAuth(context);
         
-        // Store settings in user metadata or separate settings table
-        // For now, we'll use a simple JSON field approach
+        // Store settings in user settings field
         await context.prisma.user.update({
           where: { id: user.id },
           data: {

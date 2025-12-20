@@ -16,10 +16,16 @@ model User {
   avatar        String?
   phone         String?
   emailVerified Boolean           @default(false)
+  settings      Json?             // User settings and preferences
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
   households    HouseholdMember[]
   createdHouseholds Household[]   @relation("HouseholdCreator")
+  mealPlans     MealPlan[]
+  nutritionEntries NutritionEntry[]
+  nutritionGoals NutritionGoals[]
+  wasteEntries  WasteEntry[]
+  timers        KitchenTimer[]
 }
 
 // Household Management
@@ -269,4 +275,209 @@ model RecipeHistory {
   source      String   @default("AI")
   isFavorite  Boolean  @default(false)
   createdAt   DateTime @default(now())
+}
+
+// Meal Planning
+model MealPlan {
+  id          String     @id @default(cuid())
+  userId      String
+  kitchenId   String?
+  date        DateTime
+  mealType    MealType
+  recipeId    String?
+  recipeName  String?
+  servings    Int?
+  calories    Int?
+  prepTime    Int?
+  notes       String?
+  isCompleted Boolean    @default(false)
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@unique([userId, date, mealType])
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACK
+}
+
+model MealPlanTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  category    String   // "festival", "weekly", "diet", etc.
+  meals       Json     // Array of meal plan entries
+  duration    Int?     // Duration in days
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Nutrition Tracking
+model NutritionEntry {
+  id          String   @id @default(cuid())
+  userId      String
+  date        DateTime
+  mealType    MealType
+  foodName    String
+  quantity    Float
+  unit        String
+  calories    Float?
+  protein     Float?
+  carbs       Float?
+  fat         Float?
+  fiber       Float?
+  sugar       Float?
+  sodium      Float?
+  notes       String?
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model NutritionGoals {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  dailyCalories Float?
+  dailyProtein Float?
+  dailyCarbs   Float?
+  dailyFat     Float?
+  dailyFiber   Float?
+  dailyWater   Float?   // in liters
+  weightGoal   Float?   // target weight
+  activityLevel String? // sedentary, light, moderate, active, very_active
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model WaterIntake {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime
+  amount    Float    // in ml
+  time      DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+// Waste Tracking
+model WasteEntry {
+  id          String    @id @default(cuid())
+  userId      String
+  kitchenId   String?
+  date        DateTime
+  itemName    String
+  category    String?
+  quantity    Float
+  unit        String
+  reason      WasteReason
+  cost        Float?    // estimated cost of wasted item
+  preventable Boolean   @default(true)
+  notes       String?
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+enum WasteReason {
+  EXPIRED
+  SPOILED
+  OVERCOOKED
+  LEFTOVER
+  ACCIDENTAL
+  DISLIKED
+  OTHER
+}
+
+model WasteGoals {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  monthlyWasteKg  Float?   // target waste in kg per month
+  monthlyCostSave Float?   // target cost savings per month
+  co2SaveKg       Float?   // target CO2 savings in kg per month
+  waterSaveLiters Float?   // target water savings in liters per month
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// Kitchen Timer
+model KitchenTimer {
+  id          String      @id @default(cuid())
+  userId      String
+  name        String
+  duration    Int         // duration in seconds
+  category    TimerCategory
+  isActive    Boolean     @default(false)
+  startedAt   DateTime?
+  pausedAt    DateTime?
+  completedAt DateTime?
+  notes       String?
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+enum TimerCategory {
+  COOKING
+  BAKING
+  STEAMING
+  BOILING
+  MARINATING
+  RESTING
+  CUSTOM
+}
+
+// Notifications
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?            // Additional data for the notification
+  isRead    Boolean          @default(false)
+  sentAt    DateTime?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+}
+
+enum NotificationType {
+  EXPIRY_WARNING
+  LOW_STOCK
+  SHOPPING_REMINDER
+  MEAL_PLAN_REMINDER
+  TIMER_COMPLETE
+  WASTE_GOAL_EXCEEDED
+  NUTRITION_GOAL_ACHIEVED
+  SYSTEM_UPDATE
+  GENERAL
+}
+
+// User Preferences
+model UserPreferences {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  theme                 String?  @default("system") // light, dark, system
+  language              String?  @default("en")
+  timezone              String?  @default("UTC")
+  currency              String?  @default("INR")
+  units                 String?  @default("metric") // metric, imperial
+  notifications         Json?    // notification preferences
+  privacy               Json?    // privacy settings
+  accessibility         Json?    // accessibility settings
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([userId])
 }

@@ -11,6 +11,11 @@ import { usageLogResolvers } from './usageLog';
 import { recipeResolvers } from './recipe';
 import { aiResolvers } from './ai';
 import { ocrResolvers } from './ocr';
+import { mealPlanResolvers } from './mealPlan';
+import { nutritionResolvers } from './nutrition';
+import { wasteResolvers } from './waste';
+import { timerResolvers } from './timer';
+import { notificationResolvers } from './notification';
 
 export const resolvers: any = {
   DateTime: DateTimeResolver,
@@ -27,6 +32,11 @@ export const resolvers: any = {
     ...usageLogResolvers.Query,
     ...recipeResolvers.Query,
     ...aiResolvers.Query,
+    ...mealPlanResolvers.Query,
+    ...nutritionResolvers.Query,
+    ...wasteResolvers.Query,
+    ...timerResolvers.Query,
+    ...notificationResolvers.Query,
   },
 
   Mutation: {
@@ -42,6 +52,11 @@ export const resolvers: any = {
     ...recipeResolvers.Mutation,
     ...aiResolvers.Mutation,
     ...ocrResolvers.Mutation,
+    ...mealPlanResolvers.Mutation,
+    ...nutritionResolvers.Mutation,
+    ...wasteResolvers.Mutation,
+    ...timerResolvers.Mutation,
+    ...notificationResolvers.Mutation,
   },
 
   // Type resolvers

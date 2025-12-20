@@ -276,6 +276,214 @@ export const typeDefs: DocumentNode = gql`
     createdAt: DateTime!
   }
 
+  # Meal Planning Types
+  type MealPlan {
+    id: ID!
+    userId: String!
+    kitchenId: String
+    date: DateTime!
+    mealType: MealType!
+    recipeId: String
+    recipeName: String
+    servings: Int
+    calories: Int
+    prepTime: Int
+    notes: String
+    isCompleted: Boolean!
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  type MealPlanTemplate {
+    id: ID!
+    name: String!
+    description: String
+    category: String!
+    meals: JSON!
+    duration: Int
+    isPublic: Boolean!
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  enum MealType {
+    BREAKFAST
+    LUNCH
+    DINNER
+    SNACK
+  }
+
+  # Nutrition Types
+  type NutritionEntry {
+    id: ID!
+    userId: String!
+    date: DateTime!
+    mealType: MealType!
+    foodName: String!
+    quantity: Float!
+    unit: String!
+    calories: Float
+    protein: Float
+    carbs: Float
+    fat: Float
+    fiber: Float
+    sugar: Float
+    sodium: Float
+    notes: String
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  type NutritionGoals {
+    id: ID!
+    userId: String!
+    dailyCalories: Float
+    dailyProtein: Float
+    dailyCarbs: Float
+    dailyFat: Float
+    dailyFiber: Float
+    dailyWater: Float
+    weightGoal: Float
+    activityLevel: String
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  type DailyNutrition {
+    date: DateTime!
+    calories: Float!
+    protein: Float!
+    carbs: Float!
+    fat: Float!
+    fiber: Float!
+    sugar: Float!
+    sodium: Float!
+    water: Float!
+    entries: [NutritionEntry!]!
+    waterIntakes: [WaterIntake!]!
+  }
+
+  type WaterIntake {
+    id: ID!
+    userId: String!
+    date: DateTime!
+    amount: Float!
+    time: DateTime!
+    createdAt: DateTime!
+  }
+
+  # Waste Tracking Types
+  type WasteEntry {
+    id: ID!
+    userId: String!
+    kitchenId: String
+    date: DateTime!
+    itemName: String!
+    category: String
+    quantity: Float!
+    unit: String!
+    reason: WasteReason!
+    cost: Float
+    preventable: Boolean!
+    notes: String
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  type WasteGoals {
+    id: ID!
+    userId: String!
+    monthlyWasteKg: Float
+    monthlyCostSave: Float
+    co2SaveKg: Float
+    waterSaveLiters: Float
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  type WasteStats {
+    period: String!
+    startDate: DateTime!
+    endDate: DateTime!
+    totalEntries: Int!
+    totalWasteKg: Float!
+    totalCost: Float!
+    preventableWasteKg: Float!
+    preventablePercentage: Int!
+    co2Impact: Float!
+    waterImpact: Int!
+    categoryBreakdown: [JSON!]!
+    reasonBreakdown: [JSON!]!
+  }
+
+  enum WasteReason {
+    EXPIRED
+    SPOILED
+    OVERCOOKED
+    LEFTOVER
+    ACCIDENTAL
+    DISLIKED
+    OTHER
+  }
+
+  # Kitchen Timer Types
+  type KitchenTimer {
+    id: ID!
+    userId: String!
+    name: String!
+    duration: Int!
+    category: TimerCategory!
+    isActive: Boolean!
+    startedAt: DateTime
+    pausedAt: DateTime
+    completedAt: DateTime
+    notes: String
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
+  enum TimerCategory {
+    COOKING
+    BAKING
+    STEAMING
+    BOILING
+    MARINATING
+    RESTING
+    CUSTOM
+  }
+
+  type TimerPreset {
+    name: String!
+    duration: Int!
+    category: TimerCategory!
+  }
+
+  # Notification Types
+  type Notification {
+    id: ID!
+    userId: String!
+    type: NotificationType!
+    title: String!
+    message: String!
+    data: JSON
+    isRead: Boolean!
+    sentAt: DateTime
+    readAt: DateTime
+    createdAt: DateTime!
+  }
+
+  enum NotificationType {
+    EXPIRY_WARNING
+    LOW_STOCK
+    SHOPPING_REMINDER
+    MEAL_PLAN_REMINDER
+    TIMER_COMPLETE
+    WASTE_GOAL_EXCEEDED
+    NUTRITION_GOAL_ACHIEVED
+    SYSTEM_UPDATE
+    GENERAL
+  }
+
   # Input Types
   input RegisterInput {
     email: String!
@@ -300,29 +508,6 @@ export const typeDefs: DocumentNode = gql`
     appSettings: JSON
     security: JSON
     support: JSON
-  }
-
-  type UploadResult {
-    url: String!
-    key: String!
-    filename: String!
-    size: Int!
-    contentType: String!
-  }
-
-  type PresignedUploadResult {
-    url: String!
-    key: String!
-  }
-
-  type ForgotPasswordResponse {
-    success: Boolean!
-    message: String!
-  }
-
-  type ResetPasswordResponse {
-    success: Boolean!
-    message: String!
   }
 
   input CreateHouseholdInput {
@@ -433,6 +618,190 @@ export const typeDefs: DocumentNode = gql`
     dietary: [String!]
   }
 
+  # New Input Types for Missing Features
+  input CreateMealPlanInput {
+    date: DateTime!
+    mealType: MealType!
+    recipeId: String
+    recipeName: String
+    servings: Int
+    calories: Int
+    prepTime: Int
+    notes: String
+    kitchenId: String
+  }
+
+  input UpdateMealPlanInput {
+    date: DateTime
+    mealType: MealType
+    recipeId: String
+    recipeName: String
+    servings: Int
+    calories: Int
+    prepTime: Int
+    notes: String
+    isCompleted: Boolean
+  }
+
+  input CreateNutritionEntryInput {
+    date: DateTime!
+    mealType: MealType!
+    foodName: String!
+    quantity: Float!
+    unit: String!
+    calories: Float
+    protein: Float
+    carbs: Float
+    fat: Float
+    fiber: Float
+    sugar: Float
+    sodium: Float
+    notes: String
+  }
+
+  input UpdateNutritionEntryInput {
+    date: DateTime
+    mealType: MealType
+    foodName: String
+    quantity: Float
+    unit: String
+    calories: Float
+    protein: Float
+    carbs: Float
+    fat: Float
+    fiber: Float
+    sugar: Float
+    sodium: Float
+    notes: String
+  }
+
+  input UpdateNutritionGoalsInput {
+    dailyCalories: Float
+    dailyProtein: Float
+    dailyCarbs: Float
+    dailyFat: Float
+    dailyFiber: Float
+    dailyWater: Float
+    weightGoal: Float
+    activityLevel: String
+  }
+
+  input CreateWasteEntryInput {
+    date: DateTime!
+    itemName: String!
+    category: String
+    quantity: Float!
+    unit: String!
+    reason: WasteReason!
+    cost: Float
+    preventable: Boolean
+    notes: String
+    kitchenId: String
+  }
+
+  input UpdateWasteEntryInput {
+    date: DateTime
+    itemName: String
+    category: String
+    quantity: Float
+    unit: String
+    reason: WasteReason
+    cost: Float
+    preventable: Boolean
+    notes: String
+  }
+
+  input UpdateWasteGoalsInput {
+    monthlyWasteKg: Float
+    monthlyCostSave: Float
+    co2SaveKg: Float
+    waterSaveLiters: Float
+  }
+
+  input CreateKitchenTimerInput {
+    name: String!
+    duration: Int!
+    category: TimerCategory!
+    notes: String
+  }
+
+  input UpdateKitchenTimerInput {
+    name: String
+    duration: Int
+    category: TimerCategory
+    notes: String
+  }
+
+  input NotificationPreferencesInput {
+    email: Boolean
+    push: Boolean
+    sms: Boolean
+    expiryWarnings: Boolean
+    lowStockAlerts: Boolean
+    shoppingReminders: Boolean
+    mealPlanReminders: Boolean
+    timerAlerts: Boolean
+    wasteGoalAlerts: Boolean
+    nutritionGoalAlerts: Boolean
+  }
+
+  # Response Types
+  type UploadResult {
+    url: String!
+    key: String!
+    filename: String!
+    size: Int!
+    contentType: String!
+  }
+
+  type PresignedUploadResult {
+    url: String!
+    key: String!
+  }
+
+  type ForgotPasswordResponse {
+    success: Boolean!
+    message: String!
+  }
+
+  type ResetPasswordResponse {
+    success: Boolean!
+    message: String!
+  }
+
+  type OCRResult {
+    success: Boolean!
+    data: JSON
+    message: String!
+  }
+
+  type InventoryCreationResult {
+    success: Boolean!
+    items: [InventoryItem!]
+    message: String!
+  }
+
+  input ReceiptDataInput {
+    vendor: String
+    date: String
+    total: Float
+    items: [ReceiptItemInput!]!
+    category: String
+  }
+
+  input ReceiptItemInput {
+    name: String!
+    quantity: Float
+    price: Float
+    unit: String
+  }
+
+  type SmartReminderResult {
+    success: Boolean!
+    remindersCreated: Int!
+    reminders: [Reminder!]!
+  }
+
   # Queries
   type Query {
     # Auth
@@ -474,6 +843,33 @@ export const typeDefs: DocumentNode = gql`
 
     # AI
     aiScans(limit: Int = 20): [AIScan!]!
+
+    # Meal Planning
+    mealPlans(startDate: DateTime, endDate: DateTime): [MealPlan!]!
+    mealPlanTemplates(category: String): [MealPlanTemplate!]!
+    weeklyMealPlan(weekStart: DateTime!): [MealPlan!]!
+
+    # Nutrition
+    nutritionEntries(date: DateTime, startDate: DateTime, endDate: DateTime): [NutritionEntry!]!
+    nutritionGoals: NutritionGoals!
+    dailyNutritionSummary(date: DateTime!): DailyNutrition!
+    nutritionTrends(days: Int): [JSON!]!
+
+    # Waste Tracking
+    wasteEntries(startDate: DateTime, endDate: DateTime, category: String): [WasteEntry!]!
+    wasteGoals: WasteGoals!
+    wasteStats(period: String): WasteStats!
+    wasteTrends(days: Int): [JSON!]!
+
+    # Kitchen Timer
+    timers(isActive: Boolean): [KitchenTimer!]!
+    activeTimers: [KitchenTimer!]!
+    timer(id: ID!): KitchenTimer
+    timerPresets: [TimerPreset!]!
+
+    # Notifications
+    notifications(limit: Int, unreadOnly: Boolean): [Notification!]!
+    unreadNotificationCount: Int!
   }
 
   # Mutations
@@ -551,41 +947,47 @@ export const typeDefs: DocumentNode = gql`
     # Bulk Operations
     bulkCreateInventoryItems(items: [CreateInventoryItemInput!]!): [InventoryItem!]!
     bulkUpdateInventoryQuantities(updates: [JSON!]!): Boolean!
-  }
 
-  # OCR Types
-  type OCRResult {
-    success: Boolean!
-    data: JSON
-    message: String!
-  }
+    # Meal Planning
+    createMealPlan(input: CreateMealPlanInput!): MealPlan!
+    updateMealPlan(id: ID!, input: UpdateMealPlanInput!): MealPlan!
+    deleteMealPlan(id: ID!): Boolean!
+    generateMealPlanFromTemplate(templateId: ID!, startDate: DateTime!): [MealPlan!]!
+    generateShoppingListFromMealPlan(startDate: DateTime!, endDate: DateTime!, kitchenId: ID!): ShoppingList!
 
-  type InventoryCreationResult {
-    success: Boolean!
-    items: [InventoryItem!]
-    message: String!
-  }
+    # Nutrition
+    createNutritionEntry(input: CreateNutritionEntryInput!): NutritionEntry!
+    updateNutritionEntry(id: ID!, input: UpdateNutritionEntryInput!): NutritionEntry!
+    deleteNutritionEntry(id: ID!): Boolean!
+    updateNutritionGoals(input: UpdateNutritionGoalsInput!): NutritionGoals!
+    logWaterIntake(amount: Float!, time: DateTime): WaterIntake!
+    quickLogFood(foodName: String!, mealType: MealType!, date: DateTime!): NutritionEntry!
 
-  input ReceiptDataInput {
-    vendor: String
-    date: String
-    total: Float
-    items: [ReceiptItemInput!]!
-    category: String
-  }
+    # Waste Tracking
+    createWasteEntry(input: CreateWasteEntryInput!): WasteEntry!
+    updateWasteEntry(id: ID!, input: UpdateWasteEntryInput!): WasteEntry!
+    deleteWasteEntry(id: ID!): Boolean!
+    updateWasteGoals(input: UpdateWasteGoalsInput!): WasteGoals!
+    bulkCreateWasteEntries(entries: [CreateWasteEntryInput!]!): Int!
 
-  input ReceiptItemInput {
-    name: String!
-    quantity: Float
-    price: Float
-    unit: String
-  }
+    # Kitchen Timer
+    createTimer(input: CreateKitchenTimerInput!): KitchenTimer!
+    updateTimer(id: ID!, input: UpdateKitchenTimerInput!): KitchenTimer!
+    deleteTimer(id: ID!): Boolean!
+    startTimer(id: ID!): KitchenTimer!
+    pauseTimer(id: ID!): KitchenTimer!
+    stopTimer(id: ID!): KitchenTimer!
+    resetTimer(id: ID!): KitchenTimer!
+    createTimerFromPreset(presetName: String!, customName: String): KitchenTimer!
+    bulkStopTimers(timerIds: [ID!]!): Int!
 
-  # Smart Reminder Types
-  type SmartReminderResult {
-    success: Boolean!
-    remindersCreated: Int!
-    reminders: [Reminder!]!
+    # Notifications
+    markNotificationAsRead(id: ID!): Notification!
+    markAllNotificationsAsRead: Int!
+    deleteNotification(id: ID!): Boolean!
+    deleteAllNotifications: Int!
+    sendTestNotification(title: String, message: String): Boolean!
+    updateNotificationPreferences(preferences: NotificationPreferencesInput!): Boolean!
   }
 
   # Subscriptions

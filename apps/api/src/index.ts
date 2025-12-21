@@ -96,7 +96,7 @@ async function startServer() {
   // Register GraphQL endpoint with stricter rate limiting
   await fastify.register(async function (fastify) {
     await fastify.register(rateLimit, {
-      max: process.env.NODE_ENV === 'production' ? 50 : 200, // Lower limit for GraphQL
+      max: process.env.NODE_ENV === 'production' ? 50 : 1000, // Higher limit for development
       timeWindow: '15 minutes',
       keyGenerator: function (request) {
         // Rate limit by IP and user ID if authenticated

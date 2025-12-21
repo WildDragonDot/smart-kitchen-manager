@@ -25,6 +25,19 @@ export interface GeneratedRecipe {
 export async function generateRecipeWithAI(input: RecipeGenerationInput): Promise<GeneratedRecipe> {
   const { availableIngredients, cuisine, prepTime, dietary } = input;
 
+  // Check if OpenAI is configured
+  if (!openai) {
+    console.error('OpenAI API key not configured. Please set OPENAI_API_KEY environment variable.');
+    throw new Error('AI service not available - OpenAI API key not configured');
+  }
+
+  // Validate API key format
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey || !apiKey.startsWith('sk-')) {
+    console.error('Invalid OpenAI API key format. Please check OPENAI_API_KEY environment variable.');
+    throw new Error('AI service not available - Invalid API key format');
+  }
+
   const prompt = `
 Generate a recipe using the following available ingredients: ${availableIngredients.join(', ')}.
 
@@ -33,14 +46,29 @@ ${cuisine ? `- Cuisine: ${cuisine}` : ''}
 ${prepTime ? `- Preparation time: Maximum ${prepTime} minutes` : ''}
 ${dietary && dietary.length > 0 ? `- Dietary restrictions: ${dietary.join(', ')}` : ''}
 
+IMPORTANT: Please provide realistic ingredient amounts with proper units:
+- Use grams (g) for solid ingredients like vegetables, meat, flour
+- Use milliliters (ml) for liquids like water, milk, oil
+- Use teaspoons (tsp) or tablespoons (tbsp) for spices and small amounts
+- Use pieces/cloves for items like garlic, onions
+- Use cups only for rice, grains, or large volume ingredients
+
+Examples of good amounts:
+- Onion: "1 medium" or "150g"
+- Garlic: "3 cloves"
+- Oil: "2 tbsp"
+- Salt: "1 tsp"
+- Tomatoes: "2 medium" or "200g"
+- Rice: "1 cup" or "200g"
+
 Please provide a JSON response with the following structure:
 {
   "title": "Recipe Name",
   "ingredients": [
     {
       "name": "ingredient name",
-      "amount": "quantity",
-      "unit": "unit",
+      "amount": "realistic quantity with unit (e.g., 2 tbsp, 150g, 1 medium)",
+      "unit": "unit type",
       "available": true/false
     }
   ],
@@ -60,12 +88,12 @@ Please provide a JSON response with the following structure:
   "missingIngredients": ["ingredient1", "ingredient2"]
 }
 
-Focus on creating a practical, delicious recipe that maximizes the use of available ingredients.
+Focus on creating a practical, delicious recipe that maximizes the use of available ingredients with realistic, cookable amounts.
 `;
 
-  if (!openai) {
-    throw new Error('OpenAI API key not configured. Please set OPENAI_API_KEY environment variable.');
-  }
+  console.log('🤖 Calling OpenAI API for recipe generation...');
+  console.log('Available ingredients:', availableIngredients);
+  console.log('Cuisine:', cuisine);
 
   try {
     const response = await openai.chat.completions.create({
@@ -73,7 +101,7 @@ Focus on creating a practical, delicious recipe that maximizes the use of availa
       messages: [
         {
           role: 'system',
-          content: 'You are a professional chef and recipe developer. Create practical, delicious recipes based on available ingredients. Always respond with valid JSON.',
+          content: 'You are a professional chef and recipe developer. Create practical, delicious recipes based on available ingredients. Always respond with valid JSON that includes realistic ingredient amounts with proper units (grams, tbsp, tsp, pieces, etc.).',
         },
         {
           role: 'user',
@@ -86,11 +114,22 @@ Focus on creating a practical, delicious recipe that maximizes the use of availa
 
     const content = response.choices[0]?.message?.content;
     if (!content) {
-      throw new Error('No response from AI');
+      throw new Error('No response from OpenAI API');
     }
 
+    console.log('✅ OpenAI API response received');
+    console.log('Raw response:', content);
+
     // Parse the JSON response
-    const recipe = JSON.parse(content);
+    let recipe;
+    try {
+      recipe = JSON.parse(content);
+      console.log('✅ Successfully parsed AI recipe:', recipe.title);
+    } catch (parseError) {
+      console.error('❌ Failed to parse AI response as JSON:', parseError);
+      console.log('Raw content that failed to parse:', content);
+      throw new Error('Invalid JSON response from AI');
+    }
     
     return {
       title: recipe.title,
@@ -99,40 +138,77 @@ Focus on creating a practical, delicious recipe that maximizes the use of availa
       cuisine: recipe.cuisine,
       prepTime: recipe.prepTime,
       calories: recipe.calories,
+      difficulty: recipe.difficulty,
+      servings: recipe.servings,
     };
   } catch (error) {
-    console.error('OpenAI API error:', error);
+    console.error('❌ OpenAI API error:', error);
     
-    // Fallback recipe if AI fails
-    return {
-      title: 'Simple Stir Fry',
-      ingredients: availableIngredients.slice(0, 5).map(ingredient => ({
-        name: ingredient,
-        amount: '1',
-        unit: 'cup',
-        available: true,
-      })),
-      steps: [
-        {
-          step: 1,
-          instruction: 'Heat oil in a pan',
-          time: '2 minutes',
-        },
-        {
-          step: 2,
-          instruction: 'Add ingredients and stir fry',
-          time: '8 minutes',
-        },
-        {
-          step: 3,
-          instruction: 'Season and serve hot',
-          time: '1 minute',
-        },
-      ],
-      cuisine: cuisine || 'International',
-      prepTime: 15,
-      calories: 250,
-    };
+    // Check for specific error types
+    if (error instanceof Error) {
+      if (error.message.includes('API key') || error.message.includes('401')) {
+        console.error('🔑 Invalid OpenAI API key. Please check your API key configuration.');
+        
+        // For development, provide a fallback recipe
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔄 Providing fallback recipe for development...');
+          return {
+            title: `Simple ${cuisine || 'Mixed'} Dish with ${availableIngredients.slice(0, 3).join(', ')}`,
+            ingredients: availableIngredients.slice(0, 5).map((ingredient, index) => ({
+              name: ingredient,
+              amount: ['2 tbsp', '1 cup', '150g', '2 pieces', '1 tsp'][index % 5],
+              unit: 'mixed',
+              available: true
+            })),
+            steps: [
+              { step: 1, instruction: 'Prepare all ingredients by washing and chopping as needed.', time: '5 minutes' },
+              { step: 2, instruction: 'Heat oil in a pan and add the main ingredients.', time: '10 minutes' },
+              { step: 3, instruction: 'Cook until tender and season to taste.', time: '15 minutes' },
+              { step: 4, instruction: 'Serve hot and enjoy!', time: '2 minutes' }
+            ],
+            cuisine: cuisine || 'International',
+            prepTime: prepTime || 30,
+            calories: 250,
+            difficulty: 'Easy',
+            servings: 4,
+          };
+        }
+        
+        throw new Error('AI service not available - Invalid API key. Please check your OpenAI API key configuration.');
+      }
+      if (error.message.includes('quota') || error.message.includes('billing')) {
+        console.error('💳 OpenAI API quota exceeded or billing issue.');
+        throw new Error('AI service not available - API quota exceeded. Please check your OpenAI billing.');
+      }
+    }
+    
+    // For development, provide a fallback recipe
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔄 Providing fallback recipe for development...');
+      return {
+        title: `Simple ${cuisine || 'Mixed'} Dish with ${availableIngredients.slice(0, 3).join(', ')}`,
+        ingredients: availableIngredients.slice(0, 5).map((ingredient, index) => ({
+          name: ingredient,
+          amount: ['2 tbsp', '1 cup', '150g', '2 pieces', '1 tsp'][index % 5],
+          unit: 'mixed',
+          available: true
+        })),
+        steps: [
+          { step: 1, instruction: 'Prepare all ingredients by washing and chopping as needed.', time: '5 minutes' },
+          { step: 2, instruction: 'Heat oil in a pan and add the main ingredients.', time: '10 minutes' },
+          { step: 3, instruction: 'Cook until tender and season to taste.', time: '15 minutes' },
+          { step: 4, instruction: 'Serve hot and enjoy!', time: '2 minutes' }
+        ],
+        cuisine: cuisine || 'International',
+        prepTime: prepTime || 30,
+        calories: 250,
+        difficulty: 'Easy',
+        servings: 4,
+      };
+    }
+    
+    // Don't use fallback in production - throw the error so the resolver can handle it
+    throw error;
   }
 }
 

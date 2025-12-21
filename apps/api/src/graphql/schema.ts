@@ -265,6 +265,17 @@ export const typeDefs: DocumentNode = gql`
     createdAt: DateTime!
   }
 
+  type GeneratedRecipe {
+    title: String!
+    ingredients: JSON!
+    steps: JSON!
+    cuisine: String
+    prepTime: Int
+    calories: Int
+    difficulty: String
+    servings: Int
+  }
+
   # AI Scan Types
   type AIScan {
     id: ID!
@@ -618,6 +629,17 @@ export const typeDefs: DocumentNode = gql`
     dietary: [String!]
   }
 
+  input SaveRecipeInput {
+    kitchenId: ID!
+    title: String!
+    ingredients: String!
+    steps: String!
+    cuisine: String
+    prepTime: Int
+    calories: Int
+    isFavorite: Boolean
+  }
+
   # New Input Types for Missing Features
   input CreateMealPlanInput {
     date: DateTime!
@@ -839,7 +861,7 @@ export const typeDefs: DocumentNode = gql`
 
     # Recipes
     recipeHistory(kitchenId: ID): [RecipeHistory!]!
-    generateRecipe(input: GenerateRecipeInput!): JSON!
+    generateRecipe(input: GenerateRecipeInput!): GeneratedRecipe!
 
     # AI
     aiScans(limit: Int = 20): [AIScan!]!
@@ -947,6 +969,11 @@ export const typeDefs: DocumentNode = gql`
     # Bulk Operations
     bulkCreateInventoryItems(items: [CreateInventoryItemInput!]!): [InventoryItem!]!
     bulkUpdateInventoryQuantities(updates: [JSON!]!): Boolean!
+
+    # Recipe Management
+    saveRecipe(input: SaveRecipeInput!): RecipeHistory!
+    toggleRecipeFavorite(recipeId: ID!): RecipeHistory!
+    deleteRecipe(recipeId: ID!): Boolean!
 
     # Meal Planning
     createMealPlan(input: CreateMealPlanInput!): MealPlan!
